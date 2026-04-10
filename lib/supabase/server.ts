@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 function getSupabaseConfig() {
@@ -21,21 +21,22 @@ function getSupabaseConfig() {
 export async function createServerSupabaseClient() {
   const { url, key } = getSupabaseConfig();
   const cookieStore = await cookies();
+  const setAllCookies: SetAllCookies = (cookiesToSet) => {
+    try {
+      cookiesToSet.forEach(({ name, value, options }) => {
+        cookieStore.set(name, value, options);
+      });
+    } catch {
+      // Server components can read cookies but may not always write them.
+    }
+  };
 
   return createServerClient(url, key, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet) {
-        try {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        } catch {
-          // Server components can read cookies but may not always write them.
-        }
-      },
+      setAll: setAllCookies,
     },
   });
 }
