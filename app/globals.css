@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(226, 232, 240, 0.8), transparent 40%),
+    linear-gradient(180deg, #fafafa 0%, #f4f4f5 45%, #eceff3 100%);
+  color: #0f172a;
+}
+
+::selection {
+  background: rgba(15, 23, 42, 0.14);
+  color: #020617;
+}
+
+@layer base {
+  * {
+    @apply border-zinc-200;
+  }
+
+  body {
+    @apply antialiased;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    @apply outline-none;
+  }
+}
