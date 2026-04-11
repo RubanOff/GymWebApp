@@ -35,7 +35,7 @@ function parseArgs(argv) {
 
 const { to, subject } = parseArgs(process.argv.slice(2));
 
-if (!to) {
+if (!to || to === "YOUR_REAL_EMAIL") {
   console.error("Usage: npm run mail:test -- --to you@example.com");
   process.exit(1);
 }

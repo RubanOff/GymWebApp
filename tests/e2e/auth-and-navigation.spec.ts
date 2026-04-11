@@ -62,7 +62,9 @@ test.describe("authenticated smoke", () => {
     await page.getByRole("button", { name: "Create workout" }).click();
 
     await expect(page).toHaveURL(/\/workouts\/.+$/);
-    await expect(page.getByRole("heading", { name: "Workout" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Workout", exact: true }),
+    ).toBeVisible();
     await expect(page.getByLabel("Title")).toHaveValue(title);
   });
 });
