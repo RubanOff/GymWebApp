@@ -41,6 +41,18 @@ SMTP_PORT=25
 SMTP_FROM=noreply@gympulse.space
 ```
 
+You can apply the baseline server-side Postfix settings with:
+
+```bash
+MAIL_DOMAIN=gympulse.space MAIL_HOST=mail.gympulse.space ./scripts/configure-postfix.sh
+```
+
+For relay fallback:
+
+```bash
+MAIL_DOMAIN=gympulse.space MAIL_HOST=mail.gympulse.space RELAYHOST=[smtp.relay.example]:587 ./scripts/configure-postfix.sh
+```
+
 ## OpenDKIM
 
 Typical steps:
@@ -49,6 +61,12 @@ Typical steps:
 2. Configure OpenDKIM to sign `gympulse.space`
 3. Publish the public key in DNS
 4. Wire Postfix to OpenDKIM via milter
+
+The repo provides an automation script:
+
+```bash
+MAIL_DOMAIN=gympulse.space DKIM_SELECTOR=default ./scripts/configure-opendkim.sh
+```
 
 ## Delivery checks
 
@@ -59,6 +77,7 @@ After setup, verify:
 - messages pass DKIM
 - messages align with DMARC
 - links in verify/magic/reset emails use `APP_URL=https://gympulse.space`
+- `npm run mail:test -- --to you@example.com` succeeds
 
 ## Practical note
 

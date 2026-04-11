@@ -27,6 +27,12 @@ To create a verified local or staging user directly in PostgreSQL:
 npm run create:user -- --email you@example.com --password secret123 --verified
 ```
 
+To send a transport-level SMTP test email through the configured local mail server:
+
+```bash
+npm run mail:test -- --to you@example.com
+```
+
 ## E2E smoke tests
 
 1. Copy [`.env.e2e.example`](./.env.e2e.example) to `.env.e2e` and fill in a real test account.
@@ -38,6 +44,7 @@ cp .env.e2e.example .env.e2e
 npx playwright install chromium
 set -a && source .env.e2e && set +a
 npm run test:e2e
+npm run test:e2e:write
 ```
 
 ## Environment variables
@@ -65,6 +72,9 @@ SMTP_FROM=noreply@gympulse.space
 - [`scripts/smoke-test.sh`](./scripts/smoke-test.sh) performs a small HTTP smoke test against the deployed app.
 - [`scripts/doctor.mjs`](./scripts/doctor.mjs) validates env, PostgreSQL connectivity, SMTP connectivity, and `APP_URL`.
 - [`scripts/create-user.mjs`](./scripts/create-user.mjs) creates a user directly in PostgreSQL for staging or smoke testing.
+- [`scripts/send-test-email.mjs`](./scripts/send-test-email.mjs) sends a test message through the configured SMTP transport.
+- [`scripts/run-e2e-write.sh`](./scripts/run-e2e-write.sh) runs only the write smoke with `E2E_ALLOW_WRITE=true`.
+- [`scripts/finalize-prod.sh`](./scripts/finalize-prod.sh) installs the backup/doctor timers and enables PM2 startup under systemd.
 - [`tests/e2e/auth-and-navigation.spec.ts`](./tests/e2e/auth-and-navigation.spec.ts) covers login redirect, auth UI, protected navigation, and an optional write smoke.
 - [`ops/DEPLOY.md`](./ops/DEPLOY.md) and [`ops/MAIL.md`](./ops/MAIL.md) document VPS rollout, nginx, TLS, backup, and mail setup.
 - In development, empty dashboard/history/templates screens can show a `Load demo data` button that seeds example workouts and templates for the signed-in user.

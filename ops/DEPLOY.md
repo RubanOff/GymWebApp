@@ -68,6 +68,12 @@ For updates, use:
 ./scripts/deploy.sh
 ```
 
+To finalize runtime automation after the first successful deploy:
+
+```bash
+./scripts/finalize-prod.sh
+```
+
 ## 5. nginx
 
 Use the template in [`ops/nginx/gympulse.space.conf`](./nginx/gympulse.space.conf).
@@ -98,6 +104,7 @@ External:
 
 ```bash
 ./scripts/smoke-test.sh https://gympulse.space
+./scripts/run-e2e-write.sh
 ```
 
 ## 7. Backups
@@ -136,3 +143,10 @@ journalctl -u gympulse-doctor.service -n 100 --no-pager
 ## 8. Mail setup
 
 See [`ops/MAIL.md`](./MAIL.md) for SPF, DKIM, DMARC, reverse DNS, and Postfix/OpenDKIM notes.
+
+The repo also provides:
+
+- [`ops/postfix/README.md`](./postfix/README.md)
+- [`ops/opendkim/README.md`](./opendkim/README.md)
+- [`scripts/configure-postfix.sh`](../scripts/configure-postfix.sh)
+- [`scripts/configure-opendkim.sh`](../scripts/configure-opendkim.sh)
