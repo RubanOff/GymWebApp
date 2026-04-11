@@ -40,7 +40,9 @@ test.describe("authenticated smoke", () => {
     await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
 
     await page.goto("/templates");
-    await expect(page.getByRole("heading", { name: "Templates" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Templates", exact: true }),
+    ).toBeVisible();
 
     await page.goto("/progress");
     await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
