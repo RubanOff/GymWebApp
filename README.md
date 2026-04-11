@@ -19,6 +19,7 @@ npm run dev
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-or-publishable-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is also supported if you prefer the newer naming.
@@ -27,6 +28,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-or-publishable-key
 
 - Supabase Auth supports email/password and magic link in this app.
 - The auth callback route is `/auth/callback`.
+- In production, set `NEXT_PUBLIC_APP_URL` to the canonical app origin, for example `https://gympulse.space`.
+- In Supabase Auth, add the callback URL to the redirect allow-list, for example `https://gympulse.space/auth/callback`.
 - The app uses `auth.users` for authentication and the tables in `supabase/schema.sql` for workout data.
 - In development, empty dashboard/history/templates screens can show a `Load demo data` button that seeds example workouts and templates for the signed-in user.
 - If you want sample content immediately, sign in and load demo data from the empty-state button on the dashboard.

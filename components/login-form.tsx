@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getAuthCallbackUrl } from "@/lib/site-url";
 import { Button, Card, Input } from "@/components/ui";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
@@ -46,15 +47,10 @@ export function LoginForm() {
         return;
       }
 
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+        options: { emailRedirectTo: getAuthCallbackUrl() },
       });
 
       if (signUpError) {
@@ -90,14 +86,9 @@ export function LoginForm() {
 
     try {
       const supabase = createClient();
-      const redirectTo =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
-
       const { error: magicError } = await supabase.auth.signInWithOtp({
         email,
-        options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+        options: { emailRedirectTo: getAuthCallbackUrl() },
       });
 
       if (magicError) {
