@@ -17,8 +17,6 @@ mkdir -p "${KEY_DIR}"
 
 if [[ ! -f "${PRIVATE_KEY}" ]]; then
   opendkim-genkey -D "${KEY_DIR}" -d "${MAIL_DOMAIN}" -s "${DKIM_SELECTOR}"
-  mv "${KEY_DIR}/${DKIM_SELECTOR}.private" "${PRIVATE_KEY}"
-  mv "${KEY_DIR}/${DKIM_SELECTOR}.txt" "${PUBLIC_RECORD}"
 fi
 
 chown -R opendkim:opendkim "${OPENDKIM_DIR}"

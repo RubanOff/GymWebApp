@@ -3,6 +3,12 @@ import { loadEnvFile } from "./lib/load-env.mjs";
 
 loadEnvFile();
 
+const smtpHost = process.env.SMTP_HOST ?? "127.0.0.1";
+const allowSelfSigned =
+  process.env.SMTP_ALLOW_SELF_SIGNED === undefined
+    ? ["127.0.0.1", "localhost"].includes(smtpHost)
+    : process.env.SMTP_ALLOW_SELF_SIGNED === "true";
+
 function parseArgs(argv) {
   const result = {
     to: process.env.TEST_MAIL_TO ?? "",
@@ -35,9 +41,12 @@ if (!to) {
 }
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? "127.0.0.1",
+  host: smtpHost,
   port: Number(process.env.SMTP_PORT ?? "25"),
   secure: false,
+  tls: {
+    rejectUnauthorized: !allowSelfSigned,
+  },
 });
 
 await transporter.sendMail({

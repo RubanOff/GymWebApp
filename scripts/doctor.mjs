@@ -4,6 +4,12 @@ import { loadEnvFile } from "./lib/load-env.mjs";
 
 loadEnvFile();
 
+const smtpHost = process.env.SMTP_HOST ?? "127.0.0.1";
+const allowSelfSigned =
+  process.env.SMTP_ALLOW_SELF_SIGNED === undefined
+    ? ["127.0.0.1", "localhost"].includes(smtpHost)
+    : process.env.SMTP_ALLOW_SELF_SIGNED === "true";
+
 const requiredEnv = [
   "DATABASE_URL",
   "APP_URL",
@@ -48,13 +54,16 @@ try {
 
 try {
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
+    host: smtpHost,
     port: Number(process.env.SMTP_PORT),
     secure: false,
+    tls: {
+      rejectUnauthorized: !allowSelfSigned,
+    },
   });
 
   await transporter.verify();
-  pass("smtp", `${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
+  pass("smtp", `${smtpHost}:${process.env.SMTP_PORT}`);
 } catch (error) {
   fail("smtp", error);
 }

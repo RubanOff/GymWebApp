@@ -7,6 +7,9 @@ const transporter = nodemailer.createTransport({
   host: getServerEnv().SMTP_HOST,
   port: getServerEnv().SMTP_PORT,
   secure: false,
+  tls: {
+    rejectUnauthorized: !getServerEnv().SMTP_ALLOW_SELF_SIGNED,
+  },
 });
 
 function buildUrl(path: string) {

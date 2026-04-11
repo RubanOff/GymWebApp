@@ -39,6 +39,7 @@ The application expects:
 SMTP_HOST=127.0.0.1
 SMTP_PORT=25
 SMTP_FROM=noreply@gympulse.space
+SMTP_ALLOW_SELF_SIGNED=true
 ```
 
 You can apply the baseline server-side Postfix settings with:

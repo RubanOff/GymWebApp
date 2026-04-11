@@ -8,6 +8,7 @@ type ServerEnv = {
   SMTP_HOST: string;
   SMTP_PORT: number;
   SMTP_FROM: string;
+  SMTP_ALLOW_SELF_SIGNED: boolean;
 };
 
 let cachedEnv: ServerEnv | null = null;
@@ -41,6 +42,10 @@ export function getServerEnv(): ServerEnv {
     SMTP_HOST: process.env.SMTP_HOST ?? "127.0.0.1",
     SMTP_PORT: smtpPort,
     SMTP_FROM: process.env.SMTP_FROM ?? "noreply@gympulse.space",
+    SMTP_ALLOW_SELF_SIGNED:
+      process.env.SMTP_ALLOW_SELF_SIGNED === undefined
+        ? ["127.0.0.1", "localhost"].includes(process.env.SMTP_HOST ?? "127.0.0.1")
+        : process.env.SMTP_ALLOW_SELF_SIGNED === "true",
   };
 
   return cachedEnv;
