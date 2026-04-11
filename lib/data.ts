@@ -1,7 +1,16 @@
 import "server-only";
 
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import {
+  sets as setsTable,
+  templateExercises,
+  templates,
+  workoutExercises,
+  workouts,
+} from "@/lib/db/schema";
 import { parseDbNumber } from "@/lib/format";
+import { NotFoundError } from "@/lib/errors";
 import type {
   ExerciseProgressPoint,
   Template,
@@ -11,56 +20,12 @@ import type {
   WorkoutSet,
 } from "@/lib/types";
 
-type WorkoutRow = {
-  id: string;
-  title: string;
-  date: string;
-  notes: string | null;
-  created_at: string;
-};
-
-type WorkoutExerciseRow = {
-  id: string;
-  workout_id: string;
-  exercise_name: string;
-  notes: string | null;
-  order_index: number;
-};
-
-type WorkoutSetRow = {
-  id: string;
-  workout_exercise_id: string;
-  reps: number | string | null;
-  weight: number | string | null;
-  rpe: number | string | null;
-  order_index: number;
-};
-
-type TemplateRow = {
-  id: string;
-  title: string;
-  created_at: string;
-};
-
-type TemplateExerciseRow = {
-  id: string;
-  template_id: string;
-  exercise_name: string;
-  order_index: number;
-  default_sets: number;
-  default_reps: number;
-};
-
-type WorkoutGraphOptions = {
-  limit?: number;
-};
-
 function sortByOrderIndex<T extends { order_index: number }>(items: T[]) {
   return [...items].sort((left, right) => left.order_index - right.order_index);
 }
 
-function sortWorkouts(workouts: WorkoutRow[]) {
-  return [...workouts].sort(
+function sortWorkouts(items: Workout[]) {
+  return [...items].sort(
     (left, right) =>
       right.date.localeCompare(left.date) ||
       right.created_at.localeCompare(left.created_at),
@@ -71,11 +36,54 @@ function toNumber(value: number | string | null) {
   return parseDbNumber(value) ?? 0;
 }
 
-function groupWorkoutGraph(
-  workoutRows: WorkoutRow[],
-  exerciseRows: WorkoutExerciseRow[],
-  setRows: WorkoutSetRow[],
-) {
+export async function getWorkoutGraph(userId: string) {
+  const workoutRows = await db
+    .select({
+      id: workouts.id,
+      title: workouts.title,
+      date: workouts.date,
+      notes: workouts.notes,
+      created_at: workouts.createdAt,
+    })
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.date), desc(workouts.createdAt));
+
+  if (!workoutRows.length) {
+    return [] as Workout[];
+  }
+
+  const workoutIds = workoutRows.map((row) => row.id);
+
+  const exerciseRows = await db
+    .select({
+      id: workoutExercises.id,
+      workout_id: workoutExercises.workoutId,
+      exercise_name: workoutExercises.exerciseName,
+      notes: workoutExercises.notes,
+      order_index: workoutExercises.orderIndex,
+    })
+    .from(workoutExercises)
+    .where(inArray(workoutExercises.workoutId, workoutIds))
+    .orderBy(workoutExercises.orderIndex);
+
+  const exerciseIds = exerciseRows.map((row) => row.id);
+
+  const setRows = exerciseIds.length
+    ? await db
+        .select({
+          id: setsTable.id,
+          workout_exercise_id: setsTable.workoutExerciseId,
+          reps: setsTable.reps,
+          weight: setsTable.weight,
+          rpe: setsTable.rpe,
+          order_index: setsTable.orderIndex,
+        })
+        .from(setsTable)
+        .where(inArray(setsTable.workoutExerciseId, exerciseIds))
+        .orderBy(setsTable.orderIndex)
+    : [];
+
   const setsByExercise = new Map<string, WorkoutSet[]>();
 
   for (const row of setRows) {
@@ -104,7 +112,7 @@ function groupWorkoutGraph(
     exercisesByWorkout.set(row.workout_id, collection);
   }
 
-  return sortWorkouts(workoutRows).map<Workout>((workout) => ({
+  return workoutRows.map<Workout>((workout) => ({
     id: workout.id,
     title: workout.title,
     date: workout.date,
@@ -114,110 +122,19 @@ function groupWorkoutGraph(
   }));
 }
 
-function groupTemplates(
-  templateRows: TemplateRow[],
-  exerciseRows: TemplateExerciseRow[],
-) {
-  const exercisesByTemplate = new Map<string, TemplateExercise[]>();
-
-  for (const row of exerciseRows) {
-    const collection = exercisesByTemplate.get(row.template_id) ?? [];
-    collection.push({
-      id: row.id,
-      exercise_name: row.exercise_name,
-      order_index: row.order_index,
-      default_sets: row.default_sets,
-      default_reps: row.default_reps,
-    });
-    exercisesByTemplate.set(row.template_id, collection);
-  }
-
-  return [...templateRows]
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))
-    .map<Template>((template) => ({
-      id: template.id,
-      title: template.title,
-      created_at: template.created_at,
-      exercises: sortByOrderIndex(exercisesByTemplate.get(template.id) ?? []),
-    }));
-}
-
-export async function getWorkoutGraph(
-  userId: string,
-  options: WorkoutGraphOptions = {},
-) {
-  const supabase = await createServerSupabaseClient();
-
-  let workoutQuery = supabase
-    .from("workouts")
-    .select("id,title,date,notes,created_at")
-    .eq("user_id", userId)
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (typeof options.limit === "number") {
-    workoutQuery = workoutQuery.limit(options.limit);
-  }
-
-  const { data: workoutRows, error: workoutError } = await workoutQuery;
-
-  if (workoutError) {
-    throw workoutError;
-  }
-
-  if (!workoutRows?.length) {
-    return [] as Workout[];
-  }
-
-  const workoutIds = workoutRows.map((row) => row.id);
-
-  const { data: exerciseRows, error: exerciseError } = await supabase
-    .from("workout_exercises")
-    .select("id,workout_id,exercise_name,notes,order_index")
-    .in("workout_id", workoutIds)
-    .order("order_index", { ascending: true });
-
-  if (exerciseError) {
-    throw exerciseError;
-  }
-
-  const exerciseIds = (exerciseRows ?? []).map((row) => row.id);
-  let setRows: WorkoutSetRow[] = [];
-
-  if (exerciseIds.length) {
-    const { data, error: setError } = await supabase
-      .from("sets")
-      .select("id,workout_exercise_id,reps,weight,rpe,order_index")
-      .in("workout_exercise_id", exerciseIds)
-      .order("order_index", { ascending: true });
-
-    if (setError) {
-      throw setError;
-    }
-
-    setRows = (data ?? []) as WorkoutSetRow[];
-  }
-
-  return groupWorkoutGraph(
-    workoutRows as WorkoutRow[],
-    (exerciseRows ?? []) as WorkoutExerciseRow[],
-    setRows,
-  );
-}
-
 export async function getWorkoutById(userId: string, workoutId: string) {
-  const workouts = await getWorkoutGraph(userId);
-  return workouts.find((workout) => workout.id === workoutId) ?? null;
+  const workoutsGraph = await getWorkoutGraph(userId);
+  return workoutsGraph.find((workout) => workout.id === workoutId) ?? null;
 }
 
 export async function getWorkoutStats(userId: string) {
-  const workouts = await getWorkoutGraph(userId);
+  const workoutsGraph = await getWorkoutGraph(userId);
 
   let exerciseCount = 0;
   let setCount = 0;
   let volume = 0;
 
-  for (const workout of workouts) {
+  for (const workout of workoutsGraph) {
     exerciseCount += workout.exercises.length;
 
     for (const exercise of workout.exercises) {
@@ -230,7 +147,7 @@ export async function getWorkoutStats(userId: string) {
   }
 
   return {
-    workoutCount: workouts.length,
+    workoutCount: workoutsGraph.length,
     exerciseCount,
     setCount,
     volume,
@@ -238,14 +155,15 @@ export async function getWorkoutStats(userId: string) {
 }
 
 export async function getRecentWorkouts(userId: string, limit = 5) {
-  return getWorkoutGraph(userId, { limit });
+  const workoutsGraph = await getWorkoutGraph(userId);
+  return workoutsGraph.slice(0, limit);
 }
 
 export async function getAllExerciseNames(userId: string) {
-  const workouts = await getWorkoutGraph(userId);
+  const workoutsGraph = await getWorkoutGraph(userId);
   const names = new Set<string>();
 
-  for (const workout of workouts) {
+  for (const workout of workoutsGraph) {
     for (const exercise of workout.exercises) {
       names.add(exercise.exercise_name);
     }
@@ -255,13 +173,12 @@ export async function getAllExerciseNames(userId: string) {
 }
 
 export async function getExerciseProgress(userId: string, exerciseName: string) {
-  const workouts = await getWorkoutGraph(userId);
+  const workoutsGraph = await getWorkoutGraph(userId);
   const points: ExerciseProgressPoint[] = [];
 
-  for (const workout of workouts) {
+  for (const workout of workoutsGraph) {
     const matchingExercises = workout.exercises.filter(
-      (exercise) =>
-        exercise.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
+      (exercise) => exercise.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
     );
 
     if (!matchingExercises.length) {
@@ -321,41 +238,82 @@ export async function getExerciseProgress(userId: string, exerciseName: string) 
 }
 
 export async function getTemplates(userId: string) {
-  const supabase = await createServerSupabaseClient();
+  const templateRows = await db
+    .select({
+      id: templates.id,
+      title: templates.title,
+      created_at: templates.createdAt,
+    })
+    .from(templates)
+    .where(eq(templates.userId, userId))
+    .orderBy(desc(templates.createdAt));
 
-  const { data: templateRows, error: templateError } = await supabase
-    .from("templates")
-    .select("id,title,created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (templateError) {
-    throw templateError;
-  }
-
-  if (!templateRows?.length) {
+  if (!templateRows.length) {
     return [] as Template[];
   }
 
   const templateIds = templateRows.map((row) => row.id);
 
-  const { data: exerciseRows, error: exerciseError } = await supabase
-    .from("template_exercises")
-    .select("id,template_id,exercise_name,order_index,default_sets,default_reps")
-    .in("template_id", templateIds)
-    .order("order_index", { ascending: true });
+  const exerciseRows = await db
+    .select({
+      id: templateExercises.id,
+      template_id: templateExercises.templateId,
+      exercise_name: templateExercises.exerciseName,
+      order_index: templateExercises.orderIndex,
+      default_sets: templateExercises.defaultSets,
+      default_reps: templateExercises.defaultReps,
+    })
+    .from(templateExercises)
+    .where(inArray(templateExercises.templateId, templateIds))
+    .orderBy(templateExercises.orderIndex);
 
-  if (exerciseError) {
-    throw exerciseError;
+  const exercisesByTemplate = new Map<string, TemplateExercise[]>();
+
+  for (const row of exerciseRows) {
+    const collection = exercisesByTemplate.get(row.template_id) ?? [];
+    collection.push({
+      id: row.id,
+      exercise_name: row.exercise_name,
+      order_index: row.order_index,
+      default_sets: row.default_sets,
+      default_reps: row.default_reps,
+    });
+    exercisesByTemplate.set(row.template_id, collection);
   }
 
-  return groupTemplates(
-    templateRows as TemplateRow[],
-    (exerciseRows ?? []) as TemplateExerciseRow[],
-  );
+  return templateRows.map<Template>((template) => ({
+    id: template.id,
+    title: template.title,
+    created_at: template.created_at,
+    exercises: sortByOrderIndex(exercisesByTemplate.get(template.id) ?? []),
+  }));
 }
 
 export async function getTemplateById(userId: string, templateId: string) {
-  const templates = await getTemplates(userId);
-  return templates.find((template) => template.id === templateId) ?? null;
+  const templateList = await getTemplates(userId);
+  return templateList.find((template) => template.id === templateId) ?? null;
+}
+
+export async function assertWorkoutOwnership(userId: string, workoutId: string) {
+  const rows = await db
+    .select({ id: workouts.id })
+    .from(workouts)
+    .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)))
+    .limit(1);
+
+  if (!rows[0]) {
+    throw new NotFoundError("Workout not found.");
+  }
+}
+
+export async function assertTemplateOwnership(userId: string, templateId: string) {
+  const rows = await db
+    .select({ id: templates.id })
+    .from(templates)
+    .where(and(eq(templates.id, templateId), eq(templates.userId, userId)))
+    .limit(1);
+
+  if (!rows[0]) {
+    throw new NotFoundError("Template not found.");
+  }
 }

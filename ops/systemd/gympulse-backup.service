@@ -1,0 +1,8 @@
+[Unit]
+Description=GymPulse PostgreSQL backup
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/GymWebApp
+ExecStart=/bin/bash -lc 'chmod +x scripts/*.sh && BACKUP_DIR=/var/backups/gympulse ./scripts/backup-postgres.sh'

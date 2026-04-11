@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { apiRequest } from "@/lib/client-api";
 import { formatDate, formatShortDate, parseDbNumber, todayInputValue } from "@/lib/format";
 import type { Template, Workout, ExerciseProgressPoint } from "@/lib/types";
 import { Badge, Button, Card, EmptyState, Input, SectionHeader, Textarea } from "@/components/ui";
@@ -28,137 +28,27 @@ function normalizeTitle(value: string, fallback: string) {
 }
 
 async function duplicateWorkout(workout: Workout) {
-  const supabase = createClient();
-  const { data: createdWorkout, error: workoutError } = await supabase
-    .from("workouts")
-    .insert({
-      title: `Copy of ${normalizeTitle(workout.title, "Workout")}`,
-      date: todayInputValue(),
-      notes: workout.notes,
-    })
-    .select("id")
-    .single();
+  const response = await apiRequest<{ workoutId: string }>(`/api/workouts/${workout.id}/duplicate`, {
+    method: "POST",
+  });
 
-  if (workoutError) {
-    throw workoutError;
-  }
-
-  for (let exerciseIndex = 0; exerciseIndex < workout.exercises.length; exerciseIndex += 1) {
-    const exercise = workout.exercises[exerciseIndex];
-    const { data: createdExercise, error: exerciseError } = await supabase
-      .from("workout_exercises")
-      .insert({
-        workout_id: createdWorkout.id,
-        exercise_name: exercise.exercise_name,
-        notes: exercise.notes,
-        order_index: exerciseIndex,
-      })
-      .select("id")
-      .single();
-
-    if (exerciseError) {
-      throw exerciseError;
-    }
-
-    const setsPayload = exercise.sets.map((set, setIndex) => ({
-      workout_exercise_id: createdExercise.id,
-      reps: set.reps,
-      weight: set.weight,
-      rpe: set.rpe,
-      order_index: setIndex,
-    }));
-
-    if (setsPayload.length) {
-      const { error: setError } = await supabase.from("sets").insert(setsPayload);
-      if (setError) {
-        throw setError;
-      }
-    }
-  }
-
-  return createdWorkout.id;
+  return response.workoutId;
 }
 
 async function createWorkoutFromTemplate(template: Template) {
-  const supabase = createClient();
-  const { data: createdWorkout, error: workoutError } = await supabase
-    .from("workouts")
-    .insert({
-      title: template.title,
-      date: todayInputValue(),
-      notes: null,
-    })
-    .select("id")
-    .single();
+  const response = await apiRequest<{ workoutId: string }>(`/api/templates/${template.id}/start`, {
+    method: "POST",
+  });
 
-  if (workoutError) {
-    throw workoutError;
-  }
-
-  for (let exerciseIndex = 0; exerciseIndex < template.exercises.length; exerciseIndex += 1) {
-    const exercise = template.exercises[exerciseIndex];
-    const { data: createdExercise, error: exerciseError } = await supabase
-      .from("workout_exercises")
-      .insert({
-        workout_id: createdWorkout.id,
-        exercise_name: exercise.exercise_name,
-        notes: null,
-        order_index: exerciseIndex,
-      })
-      .select("id")
-      .single();
-
-    if (exerciseError) {
-      throw exerciseError;
-    }
-
-    const setsPayload = Array.from({ length: exercise.default_sets }, (_, setIndex) => ({
-      workout_exercise_id: createdExercise.id,
-      reps: exercise.default_reps,
-      weight: null,
-      rpe: null,
-      order_index: setIndex,
-    }));
-
-    const { error: setError } = await supabase.from("sets").insert(setsPayload);
-    if (setError) {
-      throw setError;
-    }
-  }
-
-  return createdWorkout.id;
+  return response.workoutId;
 }
 
 async function createTemplateFromWorkout(workout: Workout) {
-  const supabase = createClient();
-  const { data: createdTemplate, error: templateError } = await supabase
-    .from("templates")
-    .insert({ title: workout.title })
-    .select("id")
-    .single();
+  const response = await apiRequest<{ templateId: string }>(`/api/workouts/${workout.id}/template`, {
+    method: "POST",
+  });
 
-  if (templateError) {
-    throw templateError;
-  }
-
-  for (let exerciseIndex = 0; exerciseIndex < workout.exercises.length; exerciseIndex += 1) {
-    const exercise = workout.exercises[exerciseIndex];
-    const firstSet = exercise.sets[0] ?? null;
-
-    const { error: exerciseError } = await supabase.from("template_exercises").insert({
-      template_id: createdTemplate.id,
-      exercise_name: exercise.exercise_name,
-      order_index: exerciseIndex,
-      default_sets: Math.max(1, exercise.sets.length || 1),
-      default_reps: parseDbNumber(firstSet?.reps) ?? 8,
-    });
-
-    if (exerciseError) {
-      throw exerciseError;
-    }
-  }
-
-  return createdTemplate.id;
+  return response.templateId;
 }
 
 export function WorkoutCard({
@@ -359,22 +249,16 @@ export function NewWorkoutForm({ templates }: { templates: Template[] }) {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const { data, error: workoutError } = await supabase
-        .from("workouts")
-        .insert({
+      const response = await apiRequest<{ workoutId: string }>("/api/workouts", {
+        method: "POST",
+        body: JSON.stringify({
           title: normalizeTitle(title, "Workout"),
           date,
           notes: notes.trim() ? notes.trim() : null,
-        })
-        .select("id")
-        .single();
+        }),
+      });
 
-      if (workoutError) {
-        throw workoutError;
-      }
-
-      router.push(`/workouts/${data.id}`);
+      router.push(`/workouts/${response.workoutId}`);
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not create workout");
@@ -651,19 +535,14 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: workoutError } = await supabase
-        .from("workouts")
-        .update({
+      await apiRequest(`/api/workouts/${workout.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           title: normalizeTitle(workout.title, "Workout"),
           date: workout.date,
           notes: workout.notes?.trim() ? workout.notes.trim() : null,
-        })
-        .eq("id", workout.id);
-
-      if (workoutError) {
-        throw workoutError;
-      }
+        }),
+      });
     } catch (persistError) {
       setError(persistError instanceof Error ? persistError.message : "Could not save workout");
     } finally {
@@ -680,18 +559,13 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: exerciseError } = await supabase
-        .from("workout_exercises")
-        .update({
-          exercise_name: normalizeTitle(exercise.exercise_name, "Exercise"),
+      await apiRequest(`/api/workout-exercises/${exercise.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          exerciseName: normalizeTitle(exercise.exercise_name, "Exercise"),
           notes: exercise.notes?.trim() ? exercise.notes.trim() : null,
-        })
-        .eq("id", exercise.id);
-
-      if (exerciseError) {
-        throw exerciseError;
-      }
+        }),
+      });
     } catch (persistError) {
       setError(persistError instanceof Error ? persistError.message : "Could not save exercise");
     } finally {
@@ -709,19 +583,14 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: setError } = await supabase
-        .from("sets")
-        .update({
+      await apiRequest(`/api/sets/${setId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           reps: setValue.reps,
           weight: setValue.weight,
           rpe: setValue.rpe,
-        })
-        .eq("id", setId);
-
-      if (setError) {
-        throw setError;
-      }
+        }),
+      });
     } catch (persistError) {
       setError(persistError instanceof Error ? persistError.message : "Could not save set");
     } finally {
@@ -738,37 +607,35 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
       const nextOrder =
         workout.exercises.reduce(
           (max, exercise) => Math.max(max, exercise.order_index),
           -1,
         ) + 1;
-      const { data, error: insertError } = await supabase
-        .from("workout_exercises")
-        .insert({
-          workout_id: workout.id,
-          exercise_name: name,
-          notes: null,
-          order_index: nextOrder,
-        })
-        .select("id,exercise_name,notes,order_index")
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
+      const response = await apiRequest<{
+        exercise: {
+          id: string;
+          exercise_name: string;
+          notes: string | null;
+          order_index: number;
+          sets: Workout["exercises"][number]["sets"];
+        };
+      }>(`/api/workouts/${workout.id}/exercises`, {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      const { exercise } = response;
 
       setWorkout((current) => ({
         ...current,
         exercises: [
           ...current.exercises,
           {
-            id: data.id,
-            exercise_name: data.exercise_name,
-            notes: data.notes,
-            order_index: data.order_index,
-            sets: [],
+            id: exercise.id,
+            exercise_name: exercise.exercise_name,
+            notes: exercise.notes,
+            order_index: exercise.order_index ?? nextOrder,
+            sets: exercise.sets ?? [],
           },
         ],
       }));
@@ -790,24 +657,23 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const nextOrder =
-        exercise.sets.reduce((max, set) => Math.max(max, set.order_index), -1) + 1;
-      const { data, error: insertError } = await supabase
-        .from("sets")
-        .insert({
-          workout_exercise_id: exerciseId,
+      const response = await apiRequest<{
+        set: {
+          id: string;
+          reps: number | null;
+          weight: number | null;
+          rpe: number | null;
+          order_index: number;
+        };
+      }>(`/api/workout-exercises/${exerciseId}/sets`, {
+        method: "POST",
+        body: JSON.stringify({
           reps: previousSet?.reps ?? 8,
-          weight: previousSet?.weight,
-          rpe: previousSet?.rpe,
-          order_index: nextOrder,
-        })
-        .select("id,reps,weight,rpe,order_index")
-        .single();
-
-      if (insertError) {
-        throw insertError;
-      }
+          weight: previousSet?.weight ?? null,
+          rpe: previousSet?.rpe ?? null,
+        }),
+      });
+      const { set } = response;
 
       setWorkout((current) => ({
         ...current,
@@ -818,11 +684,11 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
                 sets: [
                   ...item.sets,
                   {
-                    id: data.id,
-                    reps: parseDbNumber(data.reps),
-                    weight: parseDbNumber(data.weight),
-                    rpe: parseDbNumber(data.rpe),
-                    order_index: data.order_index,
+                    id: set.id,
+                    reps: parseDbNumber(set.reps),
+                    weight: parseDbNumber(set.weight),
+                    rpe: parseDbNumber(set.rpe),
+                    order_index: set.order_index,
                   },
                 ],
               }
@@ -840,11 +706,9 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: deleteError } = await supabase.from("workout_exercises").delete().eq("id", exerciseId);
-      if (deleteError) {
-        throw deleteError;
-      }
+      await apiRequest(`/api/workout-exercises/${exerciseId}`, {
+        method: "DELETE",
+      });
 
       setWorkout((current) => ({
         ...current,
@@ -861,11 +725,9 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
     setSaving(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { error: deleteError } = await supabase.from("sets").delete().eq("id", setId);
-      if (deleteError) {
-        throw deleteError;
-      }
+      await apiRequest(`/api/sets/${setId}`, {
+        method: "DELETE",
+      });
 
       setWorkout((current) => ({
         ...current,
@@ -928,7 +790,7 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
             </label>
             <div className="rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
               <p className="text-xs font-medium uppercase tracking-[0.24em] text-zinc-500">Status</p>
-              <p className="mt-1">{saving ? "Saving changes" : "Saved locally and to Supabase"}</p>
+              <p className="mt-1">{saving ? "Saving changes" : "Saved to GymPulse"}</p>
             </div>
           </div>
           <label className="space-y-2">

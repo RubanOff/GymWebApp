@@ -1,0 +1,8 @@
+[Unit]
+Description=GymPulse environment and dependency doctor
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/GymWebApp
+ExecStart=/bin/bash -lc 'npm run doctor'

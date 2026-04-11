@@ -16,7 +16,7 @@ const display = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gympulse.space"),
+  metadataBase: new URL(process.env.APP_URL ?? "https://gympulse.space"),
   title: "Gym Journal",
   description: "A fast, mobile-first workout logger for lifters.",
   icons: {

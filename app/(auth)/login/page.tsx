@@ -1,15 +1,17 @@
 import { LoginForm } from "@/components/login-form";
 import { Card } from "@/components/ui";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-export default async function LoginPage() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data,
-  } = await supabase.auth.getClaims();
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ notice?: string; error?: string }>;
+}) {
+  const user = await getCurrentUser();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
 
-  if (data?.claims?.sub) {
+  if (user) {
     redirect("/dashboard");
   }
 
@@ -45,7 +47,12 @@ export default async function LoginPage() {
         </section>
 
         <div className="lg:justify-self-end lg:w-full lg:max-w-md">
-          <LoginForm />
+          <Card className="p-5 sm:p-6">
+            <LoginForm
+              initialNotice={resolvedSearchParams.notice ?? null}
+              initialError={resolvedSearchParams.error ?? null}
+            />
+          </Card>
         </div>
       </div>
     </main>
