@@ -9,6 +9,16 @@ import { useMemo, useState } from "react";
 
 type Mode = "signin" | "signup";
 
+function getReadableAuthErrorMessage(error: Error, mode: Mode) {
+  if (error.message === "Invalid login credentials") {
+    return mode === "signin"
+      ? "Invalid email or password. If the account was not created yet, use Create account or sign in with a magic link."
+      : "This account could not be created with the provided email and password.";
+  }
+
+  return error.message;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
@@ -67,7 +77,9 @@ export function LoginForm() {
       }
     } catch (authError) {
       setError(
-        authError instanceof Error ? authError.message : "Authentication failed",
+        authError instanceof Error
+          ? getReadableAuthErrorMessage(authError, mode)
+          : "Authentication failed",
       );
     } finally {
       setLoading(false);
