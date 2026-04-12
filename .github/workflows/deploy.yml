@@ -22,9 +22,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script_stop: true
+          command_timeout: 20m
           script: |
             set -euo pipefail
             cd /var/www/GymWebApp
-            git fetch origin main
+            for i in 1 2 3; do
+              git fetch origin main && break
+              sleep 10
+            done
             git reset --hard origin/main
-            ./scripts/deploy.sh
+            sed -i 's/\r$//' .env.local
+            bash ./scripts/deploy.sh
