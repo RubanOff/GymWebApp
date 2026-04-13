@@ -125,7 +125,6 @@ export async function getCurrentUser() {
   const session = result[0];
 
   if (!session) {
-    await clearSessionCookie();
     return null;
   }
 
