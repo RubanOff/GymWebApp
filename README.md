@@ -2,6 +2,18 @@
 
 Minimal mobile-first workout logger built with Next.js App Router, TypeScript, PostgreSQL, custom email/password auth, SMTP mail delivery, and Recharts.
 
+## Git workflow
+
+Use `main` only for production-ready code. Day-to-day work should happen in short-lived branches:
+
+- `feature/...`
+- `fix/...`
+- `chore/...`
+
+Open a pull request into `main`, let `CI` pass, then merge and let `Deploy` ship production automatically.
+
+The detailed branch and PR flow lives in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
 ## Local setup
 
 1. Create a PostgreSQL database.
