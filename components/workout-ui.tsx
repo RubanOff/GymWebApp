@@ -3,6 +3,7 @@
 import { apiRequest } from "@/lib/client-api";
 import { formatDate, formatShortDate, parseDbNumber, todayInputValue } from "@/lib/format";
 import type { Template, Workout, ExerciseProgressPoint } from "@/lib/types";
+import { ExercisePredictionCard } from "@/components/exercise-prediction-card";
 import { Badge, Button, Card, EmptyState, Input, SectionHeader, Textarea } from "@/components/ui";
 import {
   ArrowRight,
@@ -461,6 +462,7 @@ function ExerciseEditorCard({
       </div>
 
       <div className="mt-4 space-y-2">
+        <ExercisePredictionCard exerciseName={exercise.exercise_name} />
         {exercise.sets.length ? (
           exercise.sets.map((setValue) => (
             <SetRow

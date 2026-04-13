@@ -1,0 +1,17 @@
+bootstrap:
+  users: 12
+  weeks: 28
+  seed: 42
+
+dataset:
+  lookback: 8
+  min_history_points: 6
+
+train:
+  hidden_size: 64
+  num_layers: 1
+  batch_size: 32
+  epochs: 40
+  learning_rate: 0.001
+  weight_decay: 0.0001
+

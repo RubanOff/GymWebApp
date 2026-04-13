@@ -1,0 +1,10 @@
+artifacts/**
+!artifacts/.gitkeep
+data/raw/**
+!data/raw/.gitkeep
+data/processed/**
+!data/processed/.gitkeep
+mlruns/
+__pycache__/
+.pytest_cache/
+

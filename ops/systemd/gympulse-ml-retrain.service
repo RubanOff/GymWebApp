@@ -1,0 +1,11 @@
+[Unit]
+Description=GymPulse weekly ML retraining
+After=network.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/GymWebApp
+EnvironmentFile=/var/www/GymWebApp/.env.local
+ExecStart=/bin/bash -lc 'source /var/www/GymWebApp/.venv-ml/bin/activate && python -m ml.data.extract --output ml/data/raw/history.csv && python -m ml.data.transform --input ml/data/raw/history.csv --output ml/data/processed/top_sets.csv && python -m ml.validation.run_validation --input ml/data/processed/top_sets.csv --report ml/artifacts/validation_report.json && python -m ml.train.train --processed-csv ml/data/processed/top_sets.csv'
+User=root
+

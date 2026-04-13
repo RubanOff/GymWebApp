@@ -9,6 +9,7 @@ type ServerEnv = {
   SMTP_PORT: number;
   SMTP_FROM: string;
   SMTP_ALLOW_SELF_SIGNED: boolean;
+  ML_SERVICE_URL: string;
 };
 
 let cachedEnv: ServerEnv | null = null;
@@ -46,6 +47,7 @@ export function getServerEnv(): ServerEnv {
       process.env.SMTP_ALLOW_SELF_SIGNED === undefined
         ? ["127.0.0.1", "localhost"].includes(process.env.SMTP_HOST ?? "127.0.0.1")
         : process.env.SMTP_ALLOW_SELF_SIGNED === "true",
+    ML_SERVICE_URL: (process.env.ML_SERVICE_URL ?? "http://127.0.0.1:8001").replace(/\/+$/, ""),
   };
 
   return cachedEnv;

@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import {
+  mlPredictionLogs,
   sets,
   templateExercises,
   templates,
@@ -294,6 +295,8 @@ export async function createSetRecord(userId: string, exerciseId: string, input:
     orderIndex: nextOrder,
   });
 
+  await resolvePredictionLogForExercise(userId, exerciseId);
+
   return {
     id,
     reps: input.reps,
@@ -328,6 +331,20 @@ export async function updateSetRecord(userId: string, setId: string, input: {
       rpe: input.rpe === null ? null : String(input.rpe),
     })
     .where(eq(sets.id, setId));
+
+  const exercise = await db
+    .select({ exerciseId: workoutExercises.id })
+    .from(sets)
+    .innerJoin(workoutExercises, eq(workoutExercises.id, sets.workoutExerciseId))
+    .innerJoin(workouts, eq(workouts.id, workoutExercises.workoutId))
+    .where(and(eq(sets.id, setId), eq(workouts.userId, userId)))
+    .limit(1);
+
+  const exerciseId = exercise[0]?.exerciseId;
+
+  if (exerciseId) {
+    await resolvePredictionLogForExercise(userId, exerciseId);
+  }
 }
 
 export async function deleteSetRecord(userId: string, setId: string) {
@@ -344,6 +361,120 @@ export async function deleteSetRecord(userId: string, setId: string) {
   }
 
   await db.delete(sets).where(eq(sets.id, setId));
+}
+
+export async function logPredictionRecord(
+  userId: string,
+  input: {
+    exerciseName: string;
+    modelVersion: string | null;
+    basis: string;
+    dataConfidence: string;
+    historyPointsUsed: number;
+    predictedWeight: number | null;
+    predictedReps: number | null;
+  },
+) {
+  const id = createId();
+
+  await db.insert(mlPredictionLogs).values({
+    id,
+    userId,
+    exerciseName: normalizeTitle(input.exerciseName, "Exercise"),
+    modelVersion: input.modelVersion,
+    basis: input.basis,
+    dataConfidence: input.dataConfidence,
+    historyPointsUsed: input.historyPointsUsed,
+    predictedWeight:
+      input.predictedWeight === null ? null : String(input.predictedWeight),
+    predictedReps: input.predictedReps,
+  });
+}
+
+export async function resolvePredictionLogForExercise(userId: string, exerciseId: string) {
+  const exerciseRow = await db
+    .select({
+      exerciseId: workoutExercises.id,
+      exerciseName: workoutExercises.exerciseName,
+    })
+    .from(workoutExercises)
+    .innerJoin(workouts, eq(workouts.id, workoutExercises.workoutId))
+    .where(and(eq(workoutExercises.id, exerciseId), eq(workouts.userId, userId)))
+    .limit(1);
+
+  const exercise = exerciseRow[0];
+
+  if (!exercise) {
+    return;
+  }
+
+  const setRows = await db
+    .select({
+      reps: sets.reps,
+      weight: sets.weight,
+      orderIndex: sets.orderIndex,
+    })
+    .from(sets)
+    .where(eq(sets.workoutExerciseId, exerciseId));
+
+  const topSet = setRows.reduce<{
+    reps: number | null;
+    weight: number | null;
+    orderIndex: number;
+  } | null>((best, current) => {
+    const currentWeight = parseDbNumber(current.weight) ?? 0;
+    const bestWeight = best ? best.weight ?? 0 : -1;
+
+    if (!best || currentWeight > bestWeight) {
+      return {
+        reps: current.reps,
+        weight: parseDbNumber(current.weight),
+        orderIndex: current.orderIndex,
+      };
+    }
+
+    if (currentWeight === bestWeight && current.orderIndex > best.orderIndex) {
+      return {
+        reps: current.reps,
+        weight: parseDbNumber(current.weight),
+        orderIndex: current.orderIndex,
+      };
+    }
+
+    return best;
+  }, null);
+
+  if (!topSet) {
+    return;
+  }
+
+  const logRow = await db
+    .select({ id: mlPredictionLogs.id })
+    .from(mlPredictionLogs)
+    .where(
+      and(
+        eq(mlPredictionLogs.userId, userId),
+        eq(mlPredictionLogs.exerciseName, exercise.exerciseName),
+        isNull(mlPredictionLogs.resolvedAt),
+      ),
+    )
+    .orderBy(desc(mlPredictionLogs.createdAt))
+    .limit(1);
+
+  const log = logRow[0];
+
+  if (!log) {
+    return;
+  }
+
+  await db
+    .update(mlPredictionLogs)
+    .set({
+      actualWeight: topSet.weight === null ? null : String(topSet.weight),
+      actualReps: topSet.reps,
+      resolvedAt: new Date().toISOString(),
+    })
+    .where(eq(mlPredictionLogs.id, log.id));
 }
 
 export async function seedDemoDataRecord(userId: string) {

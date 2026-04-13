@@ -216,4 +216,39 @@ export const templateExercises = pgTable(
   }),
 );
 
+export const mlPredictionLogs = pgTable(
+  "ml_prediction_logs",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    exerciseName: text("exercise_name").notNull(),
+    modelVersion: text("model_version"),
+    basis: text("basis").notNull(),
+    dataConfidence: text("data_confidence").notNull(),
+    historyPointsUsed: integer("history_points_used").notNull().default(0),
+    predictedWeight: numeric("predicted_weight", { precision: 8, scale: 2 }),
+    predictedReps: integer("predicted_reps"),
+    actualWeight: numeric("actual_weight", { precision: 8, scale: 2 }),
+    actualReps: integer("actual_reps"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true, mode: "string" }),
+  },
+  (table) => ({
+    userExerciseIdx: index("ml_prediction_logs_user_id_exercise_idx").on(
+      table.userId,
+      table.exerciseName,
+      table.createdAt,
+    ),
+    unresolvedIdx: index("ml_prediction_logs_unresolved_idx").on(
+      table.userId,
+      table.exerciseName,
+      table.resolvedAt,
+    ),
+  }),
+);
+
 export type UserRow = typeof users.$inferSelect;
