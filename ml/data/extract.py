@@ -24,17 +24,27 @@ SELECT
   s.rpe,
   s.created_at
 FROM workouts w
+JOIN users u ON u.id = w.user_id
 JOIN workout_exercises we ON we.workout_id = w.id
 JOIN sets s ON s.workout_exercise_id = we.id
 WHERE s.reps IS NOT NULL
   AND s.weight IS NOT NULL
+  AND (:synthetic_only = FALSE OR u.email LIKE 'ml.synthetic+%%@gympulse.local')
 ORDER BY w.user_id, we.exercise_name, w.date, s.order_index
 """
 
 
-def extract_raw_history_frame(database_url: str | None = None) -> pd.DataFrame:
+def extract_raw_history_frame(
+    database_url: str | None = None,
+    *,
+    synthetic_only: bool = False,
+) -> pd.DataFrame:
     engine = create_engine(database_url or get_settings().database_url)
-    frame = pd.read_sql(RAW_HISTORY_QUERY, engine)
+    frame = pd.read_sql(
+        RAW_HISTORY_QUERY,
+        engine,
+        params={"synthetic_only": synthetic_only},
+    )
     if frame.empty:
         return frame
 
@@ -49,12 +59,13 @@ def extract_raw_history_frame(database_url: str | None = None) -> pd.DataFrame:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Extract raw history from PostgreSQL.")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--synthetic-only", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    frame = extract_raw_history_frame()
+    frame = extract_raw_history_frame(synthetic_only=args.synthetic_only)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.output, index=False)
     print(f"Wrote {len(frame)} raw set rows to {args.output}")
@@ -62,4 +73,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

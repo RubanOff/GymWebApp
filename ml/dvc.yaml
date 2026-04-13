@@ -8,7 +8,7 @@ stages:
       - ml/data/raw/bootstrap
 
   extract-data:
-    cmd: python -m ml.data.extract --output ml/data/raw/history.csv
+    cmd: python -m ml.data.extract --synthetic-only --output ml/data/raw/history.csv
     deps:
       - ml/data/extract.py
       - ml/config.py
@@ -50,4 +50,3 @@ stages:
       - ml/train/registry.py
     outs:
       - ml/artifacts/latest.json
-
