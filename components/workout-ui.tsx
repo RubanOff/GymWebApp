@@ -236,6 +236,44 @@ export function SaveTemplateButton({ workout }: { workout: Workout }) {
   );
 }
 
+export function DeleteWorkoutButton({ workoutId }: { workoutId: string }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      "Delete this workout? This will remove all exercises and sets in it.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiRequest(`/api/workouts/${workoutId}`, {
+        method: "DELETE",
+      });
+      router.push("/history");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="danger"
+      size="sm"
+      className="rounded-full px-3"
+      onClick={handleDelete}
+      disabled={loading}
+    >
+      {loading ? "Deleting" : "Delete workout"}
+    </Button>
+  );
+}
+
 export function NewWorkoutForm({ templates }: { templates: Template[] }) {
   const router = useRouter();
   const [title, setTitle] = useState("Workout");
@@ -762,6 +800,7 @@ export function WorkoutEditor({ workout: initialWorkout }: { workout: Workout })
           <div className="flex flex-col gap-2 sm:flex-row">
             <RepeatWorkoutButton workout={workout} />
             <SaveTemplateButton workout={workout} />
+            <DeleteWorkoutButton workoutId={workout.id} />
           </div>
         </div>
 

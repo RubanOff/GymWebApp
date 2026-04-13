@@ -186,6 +186,17 @@ export async function updateWorkoutRecord(userId: string, workoutId: string, inp
   }
 }
 
+export async function deleteWorkoutRecord(userId: string, workoutId: string) {
+  const deleted = await db
+    .delete(workouts)
+    .where(and(eq(workouts.id, workoutId), eq(workouts.userId, userId)))
+    .returning({ id: workouts.id });
+
+  if (!deleted[0]) {
+    throw new NotFoundError("Workout not found.");
+  }
+}
+
 export async function createExerciseRecord(userId: string, workoutId: string, name: string) {
   const workout = await db
     .select({ id: workouts.id })
