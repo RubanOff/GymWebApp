@@ -53,7 +53,7 @@ python -m ml.bootstrap.load_to_postgres --users 12 --weeks 28 --seed 42 --clear-
 End-to-end from the live database:
 
 ```bash
-python -m ml.data.extract --output ml/data/raw/history.csv
+python -m ml.data.extract --synthetic-only --output ml/data/raw/history.csv
 python -m ml.data.transform --input ml/data/raw/history.csv --output ml/data/processed/top_sets.csv
 python -m ml.validation.run_validation --input ml/data/processed/top_sets.csv --report ml/artifacts/validation_report.json
 python -m ml.train.train --processed-csv ml/data/processed/top_sets.csv
@@ -106,4 +106,3 @@ dvc remote add -d localcache /var/mlops/gympulse-dvc
 - The current target is the next workout's **top set** per exercise.
 - The service falls back to `repeat_last` if history is sparse or a model artifact is unavailable.
 - Prediction request logging and later resolution live in the app database table `ml_prediction_logs`.
-
