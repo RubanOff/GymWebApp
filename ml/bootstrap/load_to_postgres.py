@@ -73,6 +73,7 @@ def load_tables_to_postgres(tables: dict[str, pd.DataFrame], clear_synthetic: bo
             if_exists="append",
             index=False,
             method="multi",
+            chunksize=500,
             dtype=TABLE_DTYPES[name],
         )
 
