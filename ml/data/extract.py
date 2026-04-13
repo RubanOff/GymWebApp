@@ -29,7 +29,6 @@ JOIN workout_exercises we ON we.workout_id = w.id
 JOIN sets s ON s.workout_exercise_id = we.id
 WHERE s.reps IS NOT NULL
   AND s.weight IS NOT NULL
-  AND (:synthetic_only = FALSE OR u.email LIKE 'ml.synthetic+%%@gympulse.local')
 ORDER BY w.user_id, we.exercise_name, w.date, s.order_index
 """
 
@@ -40,10 +39,15 @@ def extract_raw_history_frame(
     synthetic_only: bool = False,
 ) -> pd.DataFrame:
     engine = create_engine(database_url or get_settings().database_url)
+    query = RAW_HISTORY_QUERY
+    if synthetic_only:
+        query = query.replace(
+            "WHERE s.reps IS NOT NULL\n  AND s.weight IS NOT NULL",
+            "WHERE s.reps IS NOT NULL\n  AND s.weight IS NOT NULL\n  AND u.email LIKE 'ml.synthetic+%@gympulse.local'",
+        )
     frame = pd.read_sql(
-        RAW_HISTORY_QUERY,
+        query,
         engine,
-        params={"synthetic_only": synthetic_only},
     )
     if frame.empty:
         return frame
