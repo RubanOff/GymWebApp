@@ -43,7 +43,7 @@ def extract_raw_history_frame(
     if synthetic_only:
         query = query.replace(
             "WHERE s.reps IS NOT NULL\n  AND s.weight IS NOT NULL",
-            "WHERE s.reps IS NOT NULL\n  AND s.weight IS NOT NULL\n  AND u.email LIKE 'ml.synthetic+%@gympulse.local'",
+            "WHERE s.reps IS NOT NULL\n  AND s.weight IS NOT NULL\n  AND u.email LIKE 'ml.synthetic+%%@gympulse.local'",
         )
     frame = pd.read_sql(
         query,
