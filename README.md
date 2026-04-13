@@ -2,6 +2,8 @@
 
 Minimal mobile-first workout logger built with Next.js App Router, TypeScript, PostgreSQL, custom email/password auth, SMTP mail delivery, and Recharts.
 
+The repository now also contains a synthetic-first ML forecasting pipeline under [`ml/`](./ml) for next-set recommendations.
+
 ## Git workflow
 
 Use `main` only for production-ready code. Day-to-day work should happen in short-lived branches:
@@ -70,7 +72,20 @@ SMTP_HOST=127.0.0.1
 SMTP_PORT=25
 SMTP_FROM=noreply@gympulse.space
 SMTP_ALLOW_SELF_SIGNED=true
+ML_SERVICE_URL=http://127.0.0.1:8001
 ```
+
+## ML forecasting
+
+The `ml/` package contains:
+
+- synthetic workout history generation and PostgreSQL bootstrap
+- top-set extraction and sequence preparation
+- Great Expectations validation
+- PyTorch `LSTM` training with MLflow logging
+- FastAPI prediction service for `Next set forecast`
+
+See [`ml/README.md`](./ml/README.md) for setup, training, serving, and DVC usage.
 
 ## Notes
 
@@ -90,5 +105,6 @@ SMTP_ALLOW_SELF_SIGNED=true
 - [`scripts/finalize-prod.sh`](./scripts/finalize-prod.sh) installs the backup/doctor timers and enables PM2 startup under systemd.
 - [`tests/e2e/auth-and-navigation.spec.ts`](./tests/e2e/auth-and-navigation.spec.ts) covers login redirect, auth UI, protected navigation, and an optional write smoke.
 - [`ops/DEPLOY.md`](./ops/DEPLOY.md) and [`ops/MAIL.md`](./ops/MAIL.md) document VPS rollout, nginx, TLS, backup, and mail setup.
+- [`ops/systemd/gympulse-ml.service`](./ops/systemd/gympulse-ml.service), [`ops/systemd/gympulse-ml-retrain.service`](./ops/systemd/gympulse-ml-retrain.service), and [`ops/systemd/gympulse-ml-retrain.timer`](./ops/systemd/gympulse-ml-retrain.timer) provide a starting point for running the ML microservice and weekly retraining on the VPS.
 - In development, empty dashboard/history/templates screens can show a `Load demo data` button that seeds example workouts and templates for the signed-in user.
 - If you want sample content immediately, sign in and load demo data from the empty-state button on the dashboard.

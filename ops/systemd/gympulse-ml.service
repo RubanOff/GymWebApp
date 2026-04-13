@@ -1,0 +1,16 @@
+[Unit]
+Description=GymPulse ML prediction service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/GymWebApp
+EnvironmentFile=/var/www/GymWebApp/.env.local
+ExecStart=/var/www/GymWebApp/.venv-ml/bin/uvicorn ml.service.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+

@@ -47,3 +47,13 @@ export type ExerciseProgressPoint = {
   reps: number | null;
   rpe: number | null;
 };
+
+export type ExercisePrediction = {
+  status: "ok" | "fallback" | "unavailable";
+  predicted_weight: number | null;
+  predicted_reps: number | null;
+  basis: "lstm" | "repeat_last" | "insufficient_history" | "service_unavailable";
+  model_version: string | null;
+  history_points_used: number;
+  data_confidence: "low" | "medium" | "high";
+};

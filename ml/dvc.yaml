@@ -1,0 +1,53 @@
+stages:
+  bootstrap-data:
+    cmd: python -m ml.bootstrap.synthetic --output-dir ml/data/raw/bootstrap --users 12 --weeks 28 --seed 42
+    deps:
+      - ml/bootstrap/synthetic.py
+      - ml/config.py
+    outs:
+      - ml/data/raw/bootstrap
+
+  extract-data:
+    cmd: python -m ml.data.extract --output ml/data/raw/history.csv
+    deps:
+      - ml/data/extract.py
+      - ml/config.py
+    outs:
+      - ml/data/raw/history.csv
+
+  transform-data:
+    cmd: python -m ml.data.transform --input ml/data/raw/history.csv --output ml/data/processed/top_sets.csv
+    deps:
+      - ml/data/extract.py
+      - ml/data/transform.py
+    outs:
+      - ml/data/processed/top_sets.csv
+
+  validate-data:
+    cmd: python -m ml.validation.run_validation --input ml/data/processed/top_sets.csv --report ml/artifacts/validation_report.json
+    deps:
+      - ml/data/processed/top_sets.csv
+      - ml/validation/run_validation.py
+    outs:
+      - ml/artifacts/validation_report.json
+
+  prepare-dataset:
+    cmd: python -m ml.data.dataset --input ml/data/processed/top_sets.csv --output ml/data/processed/dataset.pt --lookback 8 --min-history-points 6
+    deps:
+      - ml/data/processed/top_sets.csv
+      - ml/data/dataset.py
+    outs:
+      - ml/data/processed/dataset.pt
+
+  train-model:
+    cmd: python -m ml.train.train --processed-csv ml/data/processed/top_sets.csv --lookback 8 --min-history-points 6
+    deps:
+      - ml/data/processed/top_sets.csv
+      - ml/train/train.py
+      - ml/models/lstm.py
+      - ml/models/baseline.py
+      - ml/train/evaluate.py
+      - ml/train/registry.py
+    outs:
+      - ml/artifacts/latest.json
+

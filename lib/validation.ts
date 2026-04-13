@@ -81,3 +81,8 @@ export const createSetSchema = z.object({
 });
 
 export const updateSetSchema = createSetSchema;
+
+export const predictExerciseSchema = z.object({
+  exerciseName: z.string().trim().min(1).max(120),
+  lookback: z.number().int().min(2).max(32).optional(),
+});

@@ -89,6 +89,22 @@ create table if not exists template_exercises (
   created_at timestamptz not null default now()
 );
 
+create table if not exists ml_prediction_logs (
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  exercise_name text not null,
+  model_version text,
+  basis text not null,
+  data_confidence text not null,
+  history_points_used integer not null default 0,
+  predicted_weight numeric(8, 2),
+  predicted_reps integer,
+  actual_weight numeric(8, 2),
+  actual_reps integer,
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+
 create index if not exists sessions_user_id_idx on sessions(user_id);
 create index if not exists email_verification_tokens_user_id_idx on email_verification_tokens(user_id);
 create index if not exists magic_login_tokens_user_id_idx on magic_login_tokens(user_id);
@@ -98,3 +114,5 @@ create index if not exists workout_exercises_workout_id_idx on workout_exercises
 create index if not exists sets_workout_exercise_id_idx on sets(workout_exercise_id, order_index asc);
 create index if not exists templates_user_id_created_at_idx on templates(user_id, created_at desc);
 create index if not exists template_exercises_template_id_idx on template_exercises(template_id, order_index asc);
+create index if not exists ml_prediction_logs_user_id_exercise_idx on ml_prediction_logs(user_id, exercise_name, created_at desc);
+create index if not exists ml_prediction_logs_unresolved_idx on ml_prediction_logs(user_id, exercise_name, resolved_at);
